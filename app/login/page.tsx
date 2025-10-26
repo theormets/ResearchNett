@@ -18,6 +18,10 @@ function normalizeUrl(s: string) {
   return "https://" + x;
 }
 
+function errMsg(e: unknown) {
+  return e instanceof Error ? e.message : "Something went wrong";
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
@@ -94,16 +98,14 @@ export default function LoginPage() {
           return;
         }
 
-        const { error: pErr } = await supabase
-          .from("profiles")
-          .insert({
-            user_id: user.id,
-            full_name,
-            department,
-            institute_url,
-            scholar_url,
-            overview,
-          });
+        const { error: pErr } = await supabase.from("profiles").insert({
+          user_id: user.id,
+          full_name,
+          department,
+          institute_url,
+          scholar_url,
+          overview,
+        });
         if (pErr) throw pErr;
 
         localStorage.removeItem("pendingProfile");
@@ -134,7 +136,13 @@ export default function LoginPage() {
           const draftRaw = localStorage.getItem("pendingProfile");
           if (draftRaw) {
             try {
-              const draft = JSON.parse(draftRaw);
+              const draft = JSON.parse(draftRaw) as {
+                full_name: string;
+                department: string;
+                institute_url: string;
+                scholar_url?: string | null;
+                overview?: string | null;
+              };
               const { error: insErr } = await supabase.from("profiles").insert({
                 user_id: user.id,
                 full_name: draft.full_name,
@@ -152,8 +160,8 @@ export default function LoginPage() {
       }
 
       router.replace("/");
-    } catch (e: any) {
-      setErr(e?.message ?? "Something went wrong");
+    } catch (e: unknown) {
+      setErr(errMsg(e));
     } finally {
       setBusy(false);
     }
@@ -163,8 +171,7 @@ export default function LoginPage() {
     setErr(null);
     setInfo(null);
 
-    const email =
-      document.querySelector<HTMLInputElement>('input[name="email"]')?.value?.trim() ?? "";
+    const email = document.querySelector<HTMLInputElement>('input[name="email"]')?.value?.trim() ?? "";
 
     if (!email) {
       setErr("Enter your email above first.");

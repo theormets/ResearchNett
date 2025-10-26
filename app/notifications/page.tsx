@@ -6,6 +6,11 @@ import { supabase } from "@/lib/supabaseClient";
 
 type CallLite = { id: string; title: string };
 type Interest = { call_id: string; user_id: string; created_at: string };
+type ProfileRow = { user_id: string; full_name: string; department: string };
+
+function errMsg(e: unknown) {
+  return e instanceof Error ? e.message : "Something went wrong";
+}
 
 export default function NotificationsPage() {
   const [userId, setUserId] = useState<string | null>(null);
@@ -15,7 +20,7 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
 
-  // Map for quick lookup
+  // Map for quick lookup of call titles
   const callTitleById = useMemo(() => {
     const m: Record<string, string> = {};
     for (const c of myCalls) m[c.id] = c.title;
@@ -24,58 +29,66 @@ export default function NotificationsPage() {
 
   useEffect(() => {
     async function load() {
-      setLoading(true);
-      setErr(null);
+      try {
+        setLoading(true);
+        setErr(null);
 
-      // who am I?
-      const { data: userData } = await supabase.auth.getUser();
-      const uid = userData.user?.id ?? null;
-      setUserId(uid);
-      if (!uid) { setLoading(false); return; }
+        // who am I?
+        const { data: userData, error: userErr } = await supabase.auth.getUser();
+        if (userErr) throw userErr;
+        const uid = userData.user?.id ?? null;
+        setUserId(uid);
+        if (!uid) {
+          setLoading(false);
+          return;
+        }
 
-      // 1) fetch my calls (I am the owner)
-      const { data: calls, error: callsErr } = await supabase
-        .from("collab_calls")
-        .select("id,title")
-        .eq("owner_user_id", uid)
-        .order("created_at", { ascending: false });
+        // 1) fetch my calls (I am the owner)
+        const { data: calls, error: callsErr } = await supabase
+          .from("collab_calls")
+          .select("id,title")
+          .eq("owner_user_id", uid)
+          .order("created_at", { ascending: false });
 
-      if (callsErr) { setErr(callsErr.message); setLoading(false); return; }
-      setMyCalls(calls || []);
-      const callIds = (calls || []).map(c => c.id);
-      if (callIds.length === 0) { setLoading(false); return; }
+        if (callsErr) throw callsErr;
+        setMyCalls(calls || []);
+        const callIds = (calls || []).map((c) => c.id);
+        if (callIds.length === 0) {
+          setLoading(false);
+          return;
+        }
 
-      // 2) fetch interests for those call ids
-      const { data: ints, error: intsErr } = await supabase
-        .from("call_interest")
-        .select("call_id,user_id,created_at")
-        .in("call_id", callIds)
-        .order("created_at", { ascending: false });
+        // 2) fetch interests for those call ids
+        const { data: ints, error: intsErr } = await supabase
+          .from("call_interest")
+          .select("call_id,user_id,created_at")
+          .in("call_id", callIds)
+          .order("created_at", { ascending: false });
 
-      if (intsErr) { setErr(intsErr.message); setLoading(false); return; }
-      setInterests(ints || []);
+        if (intsErr) throw intsErr;
+        setInterests(ints || []);
 
-      // 3) fetch the profiles of users who expressed interest
-      const uniqueUserIds = Array.from(new Set((ints || []).map(r => r.user_id)));
-      if (uniqueUserIds.length) {
-        const { data: profs, error: profErr } = await supabase
-          .from("profiles")
-          .select("user_id, full_name, department")
-          .in("user_id", uniqueUserIds);
+        // 3) fetch the profiles of users who expressed interest
+        const uniqueUserIds = Array.from(new Set((ints || []).map((r) => r.user_id)));
+        if (uniqueUserIds.length) {
+          const { data: profs, error: profErr } = await supabase
+            .from("profiles")
+            .select("user_id, full_name, department")
+            .in("user_id", uniqueUserIds);
 
-        if (!profErr) {
+          if (profErr) throw profErr;
+
           const map: Record<string, { full_name: string; department: string }> = {};
-          for (const p of profs || []) {
-            map[(p as any).user_id] = {
-              full_name: (p as any).full_name,
-              department: (p as any).department,
-            };
+          for (const p of (profs as ProfileRow[] | null) ?? []) {
+            map[p.user_id] = { full_name: p.full_name, department: p.department };
           }
           setProfiles(map);
         }
+      } catch (e) {
+        setErr(errMsg(e));
+      } finally {
+        setLoading(false);
       }
-
-      setLoading(false);
     }
 
     load();
@@ -88,7 +101,7 @@ export default function NotificationsPage() {
       <section>
         <h1>Notifications</h1>
         <p>You are not signed in.</p>
-        <a href="/login">Go to Login</a>
+        <Link href="/login">Go to Login</Link>
       </section>
     );
   }
@@ -96,9 +109,7 @@ export default function NotificationsPage() {
   return (
     <section style={{ maxWidth: 900 }}>
       <h1>Notifications</h1>
-      <p style={{ color: "#666" }}>
-        People who expressed interest in your Collab Calls.
-      </p>
+      <p style={{ color: "#666" }}>People who expressed interest in your Collab Calls.</p>
 
       {err && <div style={{ color: "crimson", marginTop: 8 }}>{err}</div>}
 
@@ -115,7 +126,10 @@ export default function NotificationsPage() {
             const dept = prof?.department ? ` — ${prof.department}` : "";
 
             return (
-              <li key={r.call_id + r.user_id + idx} style={{ border: "1px solid #eee", borderRadius: 8, padding: "10px 12px" }}>
+              <li
+                key={`${r.call_id}_${r.user_id}_${idx}`}
+                style={{ border: "1px solid #eee", borderRadius: 8, padding: "10px 12px" }}
+              >
                 <div style={{ marginBottom: 6 }}>
                   <strong>
                     <Link href={`/profiles/${r.user_id}`} style={{ textDecoration: "none" }}>
