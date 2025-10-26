@@ -33,7 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
         <main style={{ maxWidth: 1000, margin: "0 auto", padding: "1.25rem" }}>{children}</main>
         <footer style={{ maxWidth: 1000, margin: "0 auto", padding: "2rem 1rem", color: "#666", fontSize: 12 }}>
-          © {new Date().getFullYear()} ResearchNett (Pilot)
+          © {new Date().getFullYear()} Gideon&apos;s attempt
         </footer>
       </body>
     </html>
