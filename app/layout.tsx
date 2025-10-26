@@ -1,7 +1,7 @@
 // add this import
 import Link from "next/link";
-import HeaderUser from "@/app/components/HeaderUser";
-import HeaderNav from "@/app/components/HeaderNav";
+import HeaderUser from "@/components/HeaderUser";
+import HeaderNav from "@/components/HeaderNav";
 
 export const metadata = { title: "ResearchNett" };
 
