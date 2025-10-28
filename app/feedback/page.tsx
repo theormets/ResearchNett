@@ -1,12 +1,23 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
+export const dynamic = "force-dynamic";   // avoid static prerender for this page
+export const revalidate = 0;
+
 export default function FeedbackPage() {
+  return (
+    <Suspense fallback={<section><h1>Feedback</h1><p>Loading…</p></section>}>
+      <FeedbackForm />
+    </Suspense>
+  );
+}
+
+function FeedbackForm() {
   const router = useRouter();
-  const search = useSearchParams();
+  const search = useSearchParams(); // now safely inside Suspense
   const fromPath = useMemo(() => search.get("from") || "/", [search]);
 
   const [userId, setUserId] = useState<string | null>(null);
@@ -78,11 +89,7 @@ export default function FeedbackPage() {
         </label>
 
         <div style={{ display: "flex", gap: 10 }}>
-          <button
-            type="submit"
-            disabled={saving}
-            style={{ padding: "0.6rem 1rem", borderRadius: 8 }}
-          >
+          <button type="submit" disabled={saving} style={{ padding: "0.6rem 1rem", borderRadius: 8 }}>
             {saving ? "Submitting..." : "Submit"}
           </button>
           <button
