@@ -2,6 +2,7 @@
 import Link from "next/link";
 import HeaderUser from "@/components/HeaderUser";
 import HeaderNav from "@/components/HeaderNav";
+import Fab from "@/components/Fab";
 
 export const metadata = { title: "ResearchNett" };
 
@@ -35,6 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <footer style={{ maxWidth: 1000, margin: "0 auto", padding: "2rem 1rem", color: "#666", fontSize: 12 }}>
           © {new Date().getFullYear()} Gideon&apos;s attempt
         </footer>
+        <Fab /> {/* <--- floating widget on every page */}
       </body>
     </html>
   );
