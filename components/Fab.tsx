@@ -85,7 +85,7 @@ export default function Fab() {
         title="Join as a founding member"
         style={btn("#065f46", "#d1fae5")}
       >
-        ⭐&nbsp; Founding member
+        ⭐&nbsp; Join as Founding member
       </button>
     </div>
   );
