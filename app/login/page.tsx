@@ -4,11 +4,20 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
+// allow only @nitt.edu emails where the part before @ has at least one letter
 function isNittEmail(raw: string) {
   const email = String(raw || "").trim().toLowerCase();
   const at = email.lastIndexOf("@");
   if (at === -1) return false;
-  return email.slice(at + 1) === "nitt.edu";
+
+  const domain = email.slice(at + 1);
+  if (domain !== "nitt.edu") return false;
+
+  const localPart = email.slice(0, at); // before @
+  // must contain at least one alphabetic character
+  const hasLetter = /[a-z]/i.test(localPart);
+
+  return hasLetter;
 }
 
 function normalizeUrl(s: string) {
@@ -44,7 +53,7 @@ export default function LoginPage() {
       const confirm = String(fd.get("confirm") || "");
 
       if (!isNittEmail(email)) {
-        setErr("Use your institutional email (@nitt.edu).");
+        setErr("Only faculty/staff @nitt.edu accounts are eligible. Numeric student IDs are not yet supported.");
         return;
       }
 
@@ -178,7 +187,7 @@ export default function LoginPage() {
       return;
     }
     if (!isNittEmail(email)) {
-      setErr("Password reset is restricted to @nitt.edu accounts.");
+      setErr("Password reset is restricted to eligible @nitt.edu accounts.");
       return;
     }
 
