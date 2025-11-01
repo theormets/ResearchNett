@@ -19,49 +19,69 @@ export default function Fab() {
       setUserId(session?.user?.id ?? null);
       setEmail(session?.user?.email ?? null);
     });
-    return () => sub.subscription.unsubscribe();
+    return () => {
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
+  // ===== Feedback button logic (unchanged) =====
   const handleFeedback = useCallback(() => {
-    // require login
-    if (!userId) { router.push("/login"); return; }
+    if (!userId) {
+      router.push("/login");
+      return;
+    }
     const qp = new URLSearchParams({ from: pathname || "/" }).toString();
     router.push(`/feedback?${qp}`);
   }, [router, userId, pathname]);
 
+  // ===== Founding member request logic (modified) =====
   const handleJoinFounder = useCallback(async () => {
-    if (!userId || !email) { router.push("/login"); return; }
-    const ok = window.confirm("Become a founding member? Your profile info will be shared with the admin.");
+    if (!userId || !email) {
+      router.push("/login");
+      return;
+    }
+
+    const ok = window.confirm(
+      "Request to join as a founding member? The admin will review your request."
+    );
     if (!ok) return;
 
-    // get profile extras
+    // pull profile info (optional extra context for admin)
     const { data: prof } = await supabase
       .from("profiles")
       .select("full_name, department")
       .eq("user_id", userId)
       .maybeSingle();
 
-    // try to insert (unique on user_id prevents duplicates)
+    // Insert into founding_member_requests instead of founding_members
+    // There's a UNIQUE(user_id) on that table, so duplicate requests won't spam.
     const { error } = await supabase
-      .from("founding_members")
+      .from("founding_member_requests")
       .insert({
         user_id: userId,
         email,
         full_name: prof?.full_name ?? null,
         department: prof?.department ?? null,
+        // status defaults to 'pending' in DB
       });
 
     if (error) {
-      // if already joined (unique violation), show a friendly note
-      alert(error.message.includes("duplicate key")
-        ? "You're already a founding member. Thank you!"
-        : `Could not join: ${error.message}`);
+      // duplicate request case -> already asked
+      if (/duplicate key|already exists|unique/i.test(error.message)) {
+        alert(
+          "You’ve already submitted a request. The admin will review it."
+        );
+      } else {
+        alert(`Could not submit request: ${error.message}`);
+      }
     } else {
-      alert("Welcome aboard! You’ve been added as a founding member.");
+      alert(
+        "Request submitted. The admin will review it and decide on adding you as a founding member."
+      );
     }
   }, [userId, email]);
 
-  // hide when logged out? we keep visible; it will route to login if needed.
+  // floating buttons in bottom-right
   return (
     <div
       style={{
@@ -80,6 +100,7 @@ export default function Fab() {
       >
         ✍️&nbsp; Feedback
       </button>
+
       <button
         onClick={handleJoinFounder}
         title="Join as a founding member"
