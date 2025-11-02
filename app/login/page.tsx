@@ -96,7 +96,7 @@ export default function LoginPage() {
         localStorage.setItem("pendingProfile", JSON.stringify(profileDraft));
 
         if (!data.session) {
-          setInfo("Account created. Please confirm your email, then sign in to complete your profile.");
+          setInfo("Account created. Please confirm your email (Check JUNK/SPAM folder, antispam.nitt.edu), then sign in to complete your profile. ");
           return;
         }
 
